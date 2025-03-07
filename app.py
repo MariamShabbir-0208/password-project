@@ -1,77 +1,127 @@
 import streamlit as st
 import re
 import time
+import secrets
+import string
 
-# Set page configuration and styling
-st.set_page_config(page_title="Password Strength Analyzer", layout="centered")
+# Set page configuration
+st.set_page_config(page_title="Password Strength Analyzer", layout="wide")
 
-# Custom CSS
+# Custom CSS with enhanced styling and animations
 st.markdown("""
 <style>
     .main {
-        background-color: #f0f8ff;
+        background: linear-gradient(135deg, #f0f8ff, #e6f0fa);
         padding: 20px;
-        border-radius: 10px;
+        border-radius: 15px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     }
     .stTitle {
         color: #1e3d59;
         text-align: center;
+        font-family: 'Arial', sans-serif;
+        font-size: 2.5em;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
     }
-    .password-input {
-        margin: 20px 0;
+    .stButton>button {
+        background: linear-gradient(45deg, #1e3d59, #2a5d8a);
+        color: white;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(45deg, #2a5d8a, #3b7cb8);
+    }
+    .balloon-pop {
+        font-size: 2em;
+        animation: pop 0.5s ease infinite;
+    }
+    .sad-emoji {
+        font-size: 1.5em;
+        animation: shake 0.5s ease infinite;
+    }
+    @keyframes pop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+        100% { transform: translateX(0); }
+    }
+    .slider {
+        background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1);
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        color: white;
+        font-size: 1.2em;
+        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# Password strength function (unchanged from previous)
 def password_strength(password):
     score = 0
     feedback = []
 
-    # Check length with more detailed scoring
-    if len(password) >= 12:
+    length = len(password)
+    if length >= 16:
+        score += 3
+    elif length >= 12:
         score += 2
-    elif len(password) >= 8:
+    elif length >= 8:
         score += 1
     else:
-        feedback.append("🔍 Password should be at least 8 characters long (12+ recommended).")
+        feedback.append("🔍 Password should be at least 8 characters (12+ recommended, 16+ ideal).")
 
-    # Check for uppercase and lowercase letters
-    if re.search(r'[A-Z]', password) and re.search(r'[a-z]', password):
+    if re.search(r'[A-Z]', password):
         score += 1
     else:
-        feedback.append("🔤 Include both uppercase and lowercase letters.")
+        feedback.append("🔤 Include at least one uppercase letter.")
+    if re.search(r'[a-z]', password):
+        score += 1
+    else:
+        feedback.append("🔤 Include at least one lowercase letter.")
 
-    # Check for digits
-    if re.search(r'\d{2,}', password):
+    digits = len(re.findall(r'\d', password))
+    if digits >= 3:
         score += 2
-    elif re.search(r'\d', password):
+    elif digits >= 1:
         score += 1
     else:
-        feedback.append("🔢 Include at least one number (0-9).")
+        feedback.append("🔢 Include at least one number (3+ for extra strength).")
 
-    # Check for special characters
     special_chars = r'[!@#$%^&*(),.?":{}|<>]'
-    if len(re.findall(special_chars, password)) >= 2:
+    special_count = len(re.findall(special_chars, password))
+    if special_count >= 3:
         score += 2
-    elif re.search(special_chars, password):
+    elif special_count >= 1:
         score += 1
     else:
-        feedback.append("🔣 Include at least one special character (!@#$%^&*).")
+        feedback.append("🔣 Include at least one special character (3+ for extra strength).")
 
-    # Check for common patterns
-    common_patterns = ["123", "abc", "qwerty", "password", "admin"]
+    unique_chars = len(set(password))
+    if unique_chars >= 12:
+        score += 1
+    elif unique_chars < length // 2:
+        feedback.append("🔄 Avoid repeating characters too much.")
+
+    common_patterns = ["123", "abc", "qwerty", "password", "admin", "letmein"]
     if any(pattern in password.lower() for pattern in common_patterns):
-        score -= 1
-        feedback.append("⚠️ Avoid common patterns in your password.")
+        score -= 2
+        feedback.append("⚠️ Avoid common patterns or dictionary words.")
 
-    # Determine strength and color
-    if score <= 2:
+    if score <= 3:
         strength = "Weak"
         color = "red"
-    elif score <= 4:
+    elif score <= 6:
         strength = "Moderate"
         color = "orange"
-    elif score <= 6:
+    elif score <= 9:
         strength = "Strong"
         color = "blue"
     else:
@@ -80,67 +130,110 @@ def password_strength(password):
 
     return strength, feedback, color, score
 
+# Password generator
+def generate_secure_password(length=16):
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
 def main():
+    # Homepage slider (rotating messages)
+    slider_messages = [
+        "🔒 Build unbreakable passwords with ease!",
+        "🎉 Strong passwords = Happy security!",
+        "💡 Get tips and generate secure passwords now!"
+    ]
+    if 'slider_index' not in st.session_state:
+        st.session_state.slider_index = 0
+    st.markdown(f"<div class='slider'>{slider_messages[st.session_state.slider_index]}</div>", unsafe_allow_html=True)
+    # Auto-rotate slider every 3 seconds
+    time.sleep(3)
+    st.session_state.slider_index = (st.session_state.slider_index + 1) % len(slider_messages)
+
     st.title("🔐 Password Strength Analyzer")
-    
-    # Add description
-    st.markdown("""
-    Create a strong password that meets security requirements. 
-    This tool will help you evaluate your password strength.
-    """)
+    st.markdown("<div style='text-align: center; color: #555;'>Evaluate or generate a password with style!</div>", unsafe_allow_html=True)
 
-    # Create two columns for layout
-    col1, col2 = st.columns([3, 1])
+    # Track previous password for duplicate detection
+    if 'prev_password' not in st.session_state:
+        st.session_state.prev_password = None
 
-    with col1:
-        password = st.text_input("Enter your password:", type="password")
-    
-    with col2:
-        show_password = st.checkbox("Show password")
-        if show_password:
-            st.text(password)
+    # Tabs for navigation
+    tab1, tab2 = st.tabs(["Analyze Password", "Generate Password"])
 
-    if st.button("Analyze Password", type="primary"):
-        if password:
-            with st.spinner("Analyzing password..."):
-                time.sleep(0.5)  # Add a small delay for effect
-                strength, feedback, color, score = password_strength(password)
-                
-                # Display strength with color
-                st.markdown(f"### Password Strength: <span style='color:{color}'>{strength}</span>", unsafe_allow_html=True)
-                
-                # Create a progress bar
-                st.progress(score/8)
-                
-                # Display feedback
-                if feedback:
-                    st.subheader("Suggestions for improvement:")
-                    for item in feedback:
-                        st.warning(item)
-                elif strength == "Very Strong":
-                    st.success("🎉 Excellent! Your password is very strong!")
-                
-                # Add password statistics
-                st.subheader("Password Statistics:")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.info(f"Length: {len(password)}")
-                with col2:
-                    st.info(f"Numbers: {len(re.findall(r'\d', password))}")
-                with col3:
-                    st.info(f"Special chars: {len(re.findall(r'[!@#$%^&*(),.?\":{}|<>]', password))}")
-        else:
-            st.error("Please enter a password to analyze.")
+    with tab1:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            password = st.text_input("Enter your password:", type="password", key="analyze_input")
+        with col2:
+            show_password = st.checkbox("Show password")
+            if show_password and password:
+                st.text(password)
 
-    # Add tips section
-    with st.expander("📌 Tips for a Strong Password"):
+        if st.button("Analyze Password", type="primary", key="analyze_button"):
+            if password:
+                with st.spinner("Analyzing password..."):
+                    time.sleep(0.5)
+                    strength, feedback, color, score = password_strength(password)
+
+                    # Check for duplicate password
+                    if password == st.session_state.prev_password:
+                        st.markdown("<div class='sad-emoji'>😞</div>", unsafe_allow_html=True)
+                        st.warning("You've used this password before. Try something new!")
+                    else:
+                        st.session_state.prev_password = password
+
+                    # Strength display with celebration
+                    st.markdown(f"### Password Strength: <span style='color:{color}'>{strength}</span> {'⭐' * min(score // 3, 4)}", unsafe_allow_html=True)
+                    st.progress(min(score / 12, 1.0))
+                    st.caption(f"Score: {score}/12")
+
+                    if strength == "Very Strong":
+                        st.markdown("<div class='balloon-pop'>🎈🎉🎈</div>", unsafe_allow_html=True)
+                        st.success("Boom! Your password is a security superstar!")
+                    elif strength == "Weak":
+                        st.markdown("<div class='sad-emoji'>😢</div>", unsafe_allow_html=True)
+                        st.error("Uh-oh! This password needs some love.")
+
+                    if feedback:
+                        st.subheader("Suggestions for Improvement:")
+                        for item in feedback:
+                            st.warning(item)
+
+                    # Stats
+                    st.subheader("Password Breakdown:")
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.info(f"Length: {len(password)}")
+                    with col2:
+                        st.info(f"Numbers: {len(re.findall(r'\d', password))}")
+                    with col3:
+                        st.info(f"Special: {len(re.findall(r'[!@#$%^&*(),.?\":{}|<>]', password))}")
+                    with col4:
+                        st.info(f"Unique: {len(set(password))}")
+            else:
+                st.error("Please enter a password to analyze.")
+
+    with tab2:
+        st.subheader("Generate a Secure Password")
+        length = st.slider("Password Length", 8, 32, 16)
+        if st.button("Generate Password", key="generate_button"):
+            new_password = generate_secure_password(length)
+            st.code(new_password, language="text")
+            strength, _, color, score = password_strength(new_password)
+            st.markdown(f"Generated Password Strength: <span style='color:{color}'>{strength}</span>", unsafe_allow_html=True)
+            if strength == "Very Strong":
+                st.markdown("<div class='balloon-pop'>🎈🎉🎈</div>", unsafe_allow_html=True)
+                st.success("Pop! A super-strong password has been generated!")
+            st.info("Copy this password and test it in the 'Analyze Password' tab!")
+
+    # Tips section
+    with st.expander("📌 Tips for a Strong Password", expanded=False):
         st.markdown("""
-        - Use at least 12 characters
-        - Mix uppercase and lowercase letters
-        - Include numbers and special characters
-        - Avoid personal information
-        - Don't use common words or patterns
-        - Use different passwords for different accounts
+        - **Length**: Aim for 12+ characters (16+ is ideal).
+        - **Variety**: Mix uppercase, lowercase, numbers, and special characters.
+        - **Uniqueness**: Avoid personal info (e.g., name, birthdate).
+        - **Randomness**: Don’t use predictable patterns (e.g., "1234", "qwerty").
+        - **Diversity**: Use unique passwords for each account.
+        - **Storage**: Consider a password manager for secure storage.
         """)
 
 if __name__ == "__main__":
